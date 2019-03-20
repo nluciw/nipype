@@ -34,3 +34,4 @@ from .possum import B0Calc
 from .fix import (AccuracyTester, Classifier, Cleaner, FeatureExtractor,
                   Training, TrainingSetCreator)
 from .aroma import ICA_AROMA
+from .asl import (ASLFile, BASIL)
