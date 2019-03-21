@@ -5,8 +5,9 @@
 <http://www.fmrib.ox.ac.uk/fsl/index.html>`_ command line tools.  This
 was written to work with FSL version 6.0.1.
 """
+import os
 
-from ..base import (TraitedSpec, File, traits)
+from ..base import (TraitedSpec, File, traits, isdefined)
 from .base import (FSLCommand, FSLCommandInputSpec)
 
 class ASLFileInputSpec(FSLCommandInputSpec):
@@ -24,19 +25,27 @@ class ASLFileInputSpec(FSLCommandInputSpec):
         desc='number of PLDs',
         argstr='--ntis=%d',
         mandatory=True)
-    diff = traits.Bool(
-        desc='Take the difference between pairs',
-        argstr='--diff')
+    difference_type = traits.Enum(
+        '--diff',
+        '--surrdiff',
+        desc='Do pairwise subtraction, using conventional (producing N/2 volumes) or surround subtraction (producing N-1).',
+        argstr='%s')
     input_form = traits.Enum(
         'diff',
         'tc',
         'ct',
         argstr='--iaf=%s',
         desc='ASL data form (differenced, tag-control, or control-tag)')
+    block_format = traits.Enum(
+        'tis',
+        'rpt',
+        argstr='--ibf=%s',
+        desc='Multi-PLD block format (same PLD grouped together [T1 T1 T2 T2 T3 T3], or PLD sets [T1 T2 T3 T1 T2 T3])')
         
 class ASLFileOutputSpec(TraitedSpec):
-    out_file = File(desc='path/name of ASL difference images')
-    
+    asl_difference_file = File(
+        exists=True, desc='ASL difference images')
+
 class ASLFile(FSLCommand):
     """FSL asl_file wrapper for ASL MRI manipulation.
     
@@ -47,8 +56,20 @@ class ASLFile(FSLCommand):
     _cmd = 'asl_file'
     
     input_spec = ASLFileInputSpec
-    
     output_spec = ASLFileOutputSpec
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        out_file = self.inputs.out_file
+        if not isdefined(out_file):
+            out_file = self._gen_fname(self.inputs.in_file, suffix='_diff')
+        outputs['asl_difference_file'] = os.path.abspath(out_file)
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            return self._list_outputs()['asl_difference_file']
+        return None
     
 class BASILInputSpec(FSLCommandInputSpec):
     in_file = File(
@@ -71,6 +92,9 @@ class BASILInputSpec(FSLCommandInputSpec):
     spatial = traits.Bool(
         desc='Apply spatial regularising prior (instead of smoothing)',
         argstr='--spatial')
+    inferart = traits.Bool(
+        desc='Add macrovascular component to the model',
+        argstr='--inferart')
         
 class BASIL(FSLCommand):
     """FSL BASIL wrapper for kinetic model inversion on ASL difference data.
